@@ -24,8 +24,8 @@
   }
   
   const SESSION_TTL = 24 * 60 * 60;
-  const mapSession = ([userID, username, connected, latitd, longitd]) =>
-    userID ? { userID, username, connected: connected === "true", latitd, longitd } : undefined;
+  const mapSession = ([userID, username, connected, pos]) =>
+    userID ? { userID, username, connected: connected === "true", pos } : undefined;
   
   class RedisSessionStore extends SessionStore {
     constructor(redisClient) {
@@ -35,11 +35,11 @@
   
     findSession(id) {
       return this.redisClient
-        .hmget(`session:${id}`, "userID", "username", "connected", "latitd", "longitd")
+        .hmget(`session:${id}`, "userID", "username", "connected", "pos")
         .then(mapSession);
     }
   
-    saveSession(id, { userID, username, connected, latitd, longitd }) {
+    saveSession(id, { userID, username, connected, pos }) {
       this.redisClient
         .multi()
         .hset(
@@ -50,10 +50,8 @@
           username,
           "connected",
           connected,
-          "latitd",
-          latitd,
-          "longitd",
-          longitd
+          "pos",
+          pos
         )
         .expire(`session:${id}`, SESSION_TTL)
         .exec();
@@ -75,7 +73,7 @@
       } while (nextIndex !== 0);
       const commands = [];
       keys.forEach((key) => {
-        commands.push(["hmget", key, "userID", "username", "connected", "latitd", "longitd"]);
+        commands.push(["hmget", key, "userID", "username", "connected", "pos"]);
       });
       return this.redisClient
         .multi(commands)

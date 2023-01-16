@@ -44,16 +44,14 @@ const messageStore = new RedisMessageStore(pubClient, subClient);
 
 io.use(async (socket, next) => {
   const sessionID = socket.handshake.auth.username;
-  let latitd = socket.handshake.auth.latitd;
-  let longitd = socket.handshake.auth.longitd;
+  let pos = socket.handshake.auth.pos;
   if (sessionID) {
     const session = await sessionStore.findSession(sessionID);
     if (session) {
       socket.sessionID = sessionID;
       socket.userID = session.userID;
       socket.username = session.username;
-      socket.latitd = latitd;
-      socket.longitd = longitd;
+      socket.pos = pos;
       return next();
     }
   }
@@ -64,8 +62,7 @@ io.use(async (socket, next) => {
   socket.sessionID = sessionID;
   socket.userID = randomId();
   socket.username = sessionID;
-  socket.latitd = latitd;
-  socket.longitd = longitd;
+  socket.pos = pos;
   next();
 });
 
@@ -75,8 +72,7 @@ io.on("connection", async (socket) => {
     userID: socket.userID,
     username: socket.username,
     connected: true,
-    latitd: socket.latitd,
-    longitd: socket.longitd,
+    pos: socket.pos,
   });
 
   // emit session details
@@ -109,8 +105,7 @@ io.on("connection", async (socket) => {
     users.push({
       userID: session.userID,
       username: session.username,
-      latitd: session.latitd,
-      longitd: session.longitd,
+      pos: session.pos,
       connected: session.connected,
       messages: messagesPerUser.get(session.userID) || [],
     });
@@ -121,8 +116,7 @@ io.on("connection", async (socket) => {
   socket.broadcast.emit("user connected", {
     userID: socket.userID,
     username: socket.username,
-    latitd: socket.latitd,
-    longitd: socket.longitd,
+    pos: socket.pos,
     connected: true,
     messages: [],
   });
@@ -139,22 +133,19 @@ io.on("connection", async (socket) => {
   });
 
     // update the connected users current location in multiplayer
-    socket.on("update position", ({ lat, lng }) => {
-      socket.latitd = lat;
-      socket.longitd = lng;
+    socket.on("update position", ({ pos }) => {
+      socket.pos = pos;
       // update the connection status of the session
       sessionStore.saveSession(socket.sessionID, {
         userID: socket.userID,
         username: socket.username,
-        latitd: socket.latitd,
-        longitd: socket.longitd,
+        pos: socket.pos,
         connected: true,
       });  
       // notify existing users
       socket.broadcast.emit("user updated", {
           userID: socket.userID,
-          latitd: socket.latitd,
-          longitd: socket.longitd,
+          pos: socket.pos,
         });
     });
 
@@ -169,8 +160,7 @@ io.on("connection", async (socket) => {
       sessionStore.saveSession(socket.sessionID, {
         userID: socket.userID,
         username: socket.username,
-        latitd: null,
-        longitd: null,
+        pos: null,
         connected: false,
       });
     }
